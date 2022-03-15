@@ -20,7 +20,9 @@ import (
 	"log"
 	"path/filepath"
 
+	"github.com/ashish-thakur111/unbox/pkg/models"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // jarCmd represents the jar command
@@ -36,11 +38,12 @@ var jarCmd = &cobra.Command{
 		if yamlLoc == "" {
 			log.Panic("Please provide a yaml file")
 		}
-		DoReadYaml(yamlLoc)
+		config := DoReadYaml(yamlLoc)
+		DoUnzipAndCreateDockerfile(config)
 	},
 }
 
-func DoReadYaml(yamlLoc string) {
+func DoReadYaml(yamlLoc string) *models.Config {
 	log.Println("Reading yaml filen from location" + yamlLoc)
 	if !filepath.IsAbs(yamlLoc) {
 		yamlLoc, _ = filepath.Abs(yamlLoc)
@@ -50,8 +53,16 @@ func DoReadYaml(yamlLoc string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var config Config
-	yaml.v3.Unmarshal(yamlFile, &config)
+	var config models.Config
+	err = yaml.Unmarshal(yamlFile, &config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &config
+}
+
+func DoUnzipAndCreateDockerfile(config *models.Config) {
+
 }
 
 func init() {
