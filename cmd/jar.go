@@ -16,8 +16,13 @@ limitations under the License.
 package cmd
 
 import (
+	"archive/zip"
+	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
+	"os"
 	"path/filepath"
 
 	"github.com/ashish-thakur111/unbox/pkg/models"
@@ -62,7 +67,36 @@ func DoReadYaml(yamlLoc string) *models.Config {
 }
 
 func DoUnzipAndCreateDockerfile(config *models.Config) {
-
+	var jarPath string
+	if filepath.IsAbs(config.Repo) {
+		jarPath = config.Repo
+	}
+	u, err := url.ParseRequestURI(config.Repo)
+	if err != nil {
+		return
+	}
+	if u.Hostname() != "" {
+		resp, err := http.Get(u.String())
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer resp.Body.Close()
+		out, err := os.CreateTemp("", "fat-jar")
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer out.Close()
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		jarPath = out.Name()
+	}
+	r, err := zip.OpenReader(jarPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer r.Close()
 }
 
 func init() {
