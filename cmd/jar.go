@@ -17,6 +17,8 @@ package cmd
 
 import (
 	"archive/zip"
+	"bufio"
+	"errors"
 	"io"
 	"io/ioutil"
 	"log"
@@ -24,6 +26,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ashish-thakur111/unbox/pkg/models"
 	"github.com/spf13/cobra"
@@ -44,7 +47,13 @@ var jarCmd = &cobra.Command{
 			log.Panic("Please provide a yaml file")
 		}
 		config := DoReadYaml(yamlLoc)
-		DoUnzipAndCreateDockerfile(config)
+		manifest, err := DoUnzipAndCreateDockerfile(config)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for k, v := range manifest {
+			log.Println(k, v)
+		}
 	},
 }
 
@@ -66,37 +75,90 @@ func DoReadYaml(yamlLoc string) *models.Config {
 	return &config
 }
 
-func DoUnzipAndCreateDockerfile(config *models.Config) {
+func DoUnzipAndCreateDockerfile(config *models.Config) (models.Manifest, error) {
 	var jarPath string
 	if filepath.IsAbs(config.Repo) {
 		jarPath = config.Repo
 	}
 	u, err := url.ParseRequestURI(config.Repo)
 	if err != nil {
-		return
+		return nil, err
 	}
 	if u.Hostname() != "" {
 		resp, err := http.Get(u.String())
 		if err != nil {
 			log.Fatalln(err)
+			return nil, err
 		}
 		defer resp.Body.Close()
 		out, err := os.CreateTemp("", "fat-jar")
 		if err != nil {
 			log.Fatalln(err)
+			return nil, err
 		}
 		defer out.Close()
 		_, err = io.Copy(out, resp.Body)
 		if err != nil {
 			log.Fatalln(err)
+			return nil, err
 		}
 		jarPath = out.Name()
 	}
 	r, err := zip.OpenReader(jarPath)
 	if err != nil {
 		log.Fatal(err)
+		return nil, err
+	}
+	for _, f := range r.File {
+		if f.Name != "META-INF/MANIFEST.MF" {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			log.Fatal(err)
+			return nil, err
+		}
+		return readManifestData(rc)
 	}
 	defer r.Close()
+	return nil, ErrNotJAR
+}
+
+var ErrNotJAR = errors.New("Given file is not a JAR file")
+var ErrWrongManifestFormat = errors.New("Can't parse manifest file (wrong format)")
+
+// readManifestData reads manifest data
+func readManifestData(r io.Reader) (models.Manifest, error) {
+	m := make(models.Manifest)
+	s := bufio.NewScanner(r)
+
+	var propName, propVal string
+
+	for s.Scan() {
+		text := s.Text()
+
+		if len(text) == 0 {
+			continue
+		}
+
+		if strings.HasPrefix(text, " ") {
+			m[propName] += strings.TrimLeft(text, " ")
+			continue
+		}
+
+		propSepIndex := strings.Index(text, ": ")
+
+		if propSepIndex == -1 || len(text) < propSepIndex+2 {
+			return nil, ErrWrongManifestFormat
+		}
+
+		propName = text[:propSepIndex]
+		propVal = text[propSepIndex+2:]
+
+		m[propName] = propVal
+	}
+
+	return m, nil
 }
 
 func init() {

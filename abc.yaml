@@ -1,6 +1,6 @@
 name: "msg-service"
 base: "openjdk:latest"
-repo: "https://repo1.maven.org/maven2/org/springframework/restdocs/spring-restdocs-mockmvc/2.0.6.RELEASE/spring-restdocs-mockmvc-2.0.6.RELEASE.jar"
+repo: "D:\\GitHub\\kafka-streams-ex\\build\\libs\\kafka-streams-ex-0.0.1-SNAPSHOT.jar"
 context:
   serviceName: "msg-service"
   productName: "microservices"

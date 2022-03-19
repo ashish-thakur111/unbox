@@ -11,3 +11,5 @@ type Config struct {
 		Volumes     []string `yaml:"volumes"`
 	}
 }
+
+type Manifest map[string]string
