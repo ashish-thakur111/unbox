@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/ashish-thakur111/unbox/pkg/models"
+	"github.com/ashish-thakur111/unbox/pkg/utils"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -47,23 +48,28 @@ var jarCmd = &cobra.Command{
 			log.Panic("Please provide a yaml file")
 		}
 		config := DoReadYaml(yamlLoc)
-		manifest, err := DoUnzipAndCreateDockerfile(config)
+		manifest, err := DoUnzipAndReadManifestfile(config)
 		if err != nil {
 			log.Fatal(err)
 		}
 		for k, v := range manifest {
 			log.Println(k, v)
 		}
+		fileParams := utils.FileParams{config.Base, config.Context.Volumes}
+		err = utils.ReadTmplAndDump("template/Dockerfile.tmpl", &fileParams)
+		if err != nil {
+			log.Fatal(err)
+		}
 	},
 }
 
-func DoReadYaml(yamlLoc string) *models.Config {
-	log.Println("Reading yaml filen from location" + yamlLoc)
-	if !filepath.IsAbs(yamlLoc) {
-		yamlLoc, _ = filepath.Abs(yamlLoc)
+func DoReadYaml(loc string) *models.Config {
+	log.Println("Reading yaml filen from location" + loc)
+	if !filepath.IsAbs(loc) {
+		loc, _ = filepath.Abs(loc)
 	}
 	log.Println("reading yaml file")
-	yamlFile, err := ioutil.ReadFile(yamlLoc)
+	yamlFile, err := ioutil.ReadFile(loc)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,12 +81,12 @@ func DoReadYaml(yamlLoc string) *models.Config {
 	return &config
 }
 
-func DoUnzipAndCreateDockerfile(config *models.Config) (models.Manifest, error) {
+func DoUnzipAndReadManifestfile(c *models.Config) (models.Manifest, error) {
 	var jarPath string
-	if filepath.IsAbs(config.Repo) {
-		jarPath = config.Repo
+	if filepath.IsAbs(c.Repo) {
+		jarPath = c.Repo
 	}
-	u, err := url.ParseRequestURI(config.Repo)
+	u, err := url.ParseRequestURI(c.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +130,8 @@ func DoUnzipAndCreateDockerfile(config *models.Config) (models.Manifest, error) 
 	return nil, ErrNotJAR
 }
 
-var ErrNotJAR = errors.New("Given file is not a JAR file")
-var ErrWrongManifestFormat = errors.New("Can't parse manifest file (wrong format)")
+var ErrNotJAR = errors.New("given file is not a JAR file")
+var ErrWrongManifestFormat = errors.New("can't parse manifest file (wrong format)")
 
 // readManifestData reads manifest data
 func readManifestData(r io.Reader) (models.Manifest, error) {

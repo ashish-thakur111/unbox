@@ -1,0 +1,5 @@
+FROM {{ .BaseImage }}
+
+{{ range $val := .Volumes }}
+RUN mkdir -p {{ $val }}{{ end }}
+
