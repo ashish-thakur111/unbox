@@ -19,6 +19,7 @@ import (
 var ErrNotJAR = errors.New("given file is not a JAR file")
 var ErrWrongManifestFormat = errors.New("can't parse manifest file (wrong format)")
 
+// function to unzip jar and with manifest meta information
 func UnzipJar(c *models.Config) (models.Manifest, string, error) {
 	var jarPath string
 	if filepath.IsAbs(c.Repo) {
@@ -53,11 +54,10 @@ func UnzipJar(c *models.Config) (models.Manifest, string, error) {
 		log.Fatal(err)
 		return nil, "", err
 	}
-	// if the file is an empty directory, create a directory
-	// create the directory
 	return extractJarAndReadManifest(r)
 }
 
+// function to extract jar and read manifest, return manifest and extracted location
 func extractJarAndReadManifest(r *zip.ReadCloser) (models.Manifest, string, error) {
 	dest, err := ioutil.TempDir("", "extracted-jar")
 	if err != nil {
@@ -69,7 +69,6 @@ func extractJarAndReadManifest(r *zip.ReadCloser) (models.Manifest, string, erro
 		log.Println("unzipping file", fp)
 
 		if f.FileInfo().IsDir() {
-
 			os.MkdirAll(fp, os.ModePerm)
 			continue
 		}
